@@ -25,7 +25,7 @@ def handleconnection(clientsock,f,myxmldoc):
     lockpool.acquire()
     mylog(3,f,"DEBUG:Received new client connection.")
     try:
-        if len(waitinglist) == 0 and (threading.activeCount() - 1) >= MAXTHREADS:
+        if len(waitinglist) == 0 and (activeCount() - 1) >= MAXTHREADS:
             # Too many connections.  Just close it and exit.
             clientsock.close()
             return
@@ -61,7 +61,7 @@ def threadworker(f,myxmldoc):
     finally:
         # Clean up if the thread is dying for some reason.
         # Can't lock here -- we may already hold the lock, but it's OK
-        print "** WARNING** Thread %s died" % name
+        print("** WARNING** Thread %s died" % name)
         if name in waitinglist:
             del waitinglist[name]
         if name in busylist:

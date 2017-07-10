@@ -11,28 +11,28 @@ import tarfile
 import base64
 
 
-def conn_thread(conn, addr):  # TCP服务器端处理逻辑
+def conn_thread(conn, addr, cli, db, fs):  # TCP服务器端处理逻辑
     print('Accept new connection from %s:%s.' % addr)  # 接受新的连接请求
     msg = conn.recv(1024)
     req = eval(msg.decode('utf-8'))  # 将客户端的请求信息转换为字典类型
     print(req)
-    handle_req(conn, req)
+    handle_req(conn, req, cli, db, fs)
     print("本次请求处理完毕，正在断开连接...")
     conn.close()
     print("连接已关闭...\n")
 
 
-def handle_req(conn, req):  # 处理前端请求
+def handle_req(conn, req, cli, db, fs):  # 处理前端请求
     if req['type'] == 'list_all_shapes':  # 前端向后台发送请求，获取最外层目录
         response = {
             "type": "list_all_shapes",
-            "all_shapenames": list_all_shapes()
+            "all_shapenames": list_all_shapes(cli, db, fs)
         }
         filename = req['clientfilename']
         send_j_response(conn,response,filename)
 
     elif req['type'] == 'list_doc_tree':  # 前端向后台发送请求，获取指定内层目录
-        doc_tree = list_doc_tree(req['doc_tree_name'])
+        doc_tree = list_doc_tree(req['doc_tree_name'], cli, db, fs)
         doc_tree = eval(doc_tree)
         filename = req['clientfilename']
         send_j_response(conn, doc_tree, filename)
@@ -40,44 +40,44 @@ def handle_req(conn, req):  # 处理前端请求
     elif req['type'] == 'log_in':  # 前端向后台发送请求，请求登录
         response = {
             "type": "log_in",
-            "error_message": check_user(req['user_name'], req['user_password']),
+            "error_message": check_user(req['user_name'], req['user_password'], cli, db, fs),
             "user_name": req['user_name'],
-            "user_authority": get_user_authority(req['user_name'])
+            "user_authority": get_user_authority(req['user_name'], cli, db, fs)
         }
         send_j_response(conn, response)
 
     elif req['type'] == 'modify':  # 前端向后端发送修改用户信息请求
         response = {
             "type": "modify",
-            "error_message": modify_user(req['user_name'], req['user_password'], req['user_authority'])
+            "error_message": modify_user(req['user_name'], req['user_password'], req['user_authority'], cli, db, fs)
         }
         send_j_response(conn, response)
 
     elif req['type'] == 'list_all_users':  # 前端要求列出所有用户
         response = {
             "type": "list_all_users",
-            "users_num": count_users(),
-            "all_users": get_user_list()
+            "users_num": count_users(cli, db, fs),
+            "all_users": get_user_list(cli, db, fs)
         }
         send_j_response(conn, response)
 
     elif req['type'] == 'add_user':  # 前端要求添加用户
         response = {
             "type": "add_user",
-            "error_message": add_user(req['user_name'], req['user_password'], req['user_authority'])
+            "error_message": add_user(req['user_name'], req['user_password'], req['user_authority'], cli, db, fs)
         }
         send_j_response(conn, response)
 
     elif req['type'] == 'delete_user':  # 前端要求删除用户
         response = {
             "type": "delete_user",
-            "error_message": del_user(req['user_name'])
+            "error_message": del_user(req['user_name'], cli, db, fs)
         }
         send_j_response(conn, response)
 
     elif req['type'] == 'download_file':  # 前端向后台发送请求，获得指定文件
         new_filename = name_switch(req['file_name']['which_file'])
-        send_file(conn, find_file(new_filename, req['file_name'],req['clientfilename']))
+        send_file(conn, find_file(new_filename, req['file_name'],req['clientfilename'], cli, db, fs))
         # if req['ack'] == 1:
             # file = find_file(new_filename, req['file_name'])
             # print(conn.send(file))
@@ -185,7 +185,7 @@ def name_switch(old_filename):
     return new_filename
 
 
-def find_file(filename, obj, clientfilename):#filename是文件在数据库里的名字，obj是前端发来的文件相关信息
+def find_file(filename, obj, clientfilename, cli, db, fs):#filename是文件在数据库里的名字，obj是前端发来的文件相关信息
     if filename == "statistics":
         item = db["STATISTICS"].find_one({"shape_name": obj[shape_name]})
         db_file_id = item[filename]["db_file_id"]
@@ -255,7 +255,7 @@ def search_condition(obj):  # 构成查询条件字段
 
 # return file_size
 
-def get_file_information(filename, obj):
+def get_file_information(filename, obj, cli, db, fs):
     if filename == "statistics":
         item = db["STATISTICS"].find_one({"shape_name": shape_name})
         file_size = item[filename]["file_size"]
@@ -282,7 +282,7 @@ def get_file_information(filename, obj):
     return file_size, file_authority
 
 
-def list_all_shapes():  # 查找所有外形名（未考虑没有数据的情况）
+def list_all_shapes(cli, db, fs):  # 查找所有外形名（未考虑没有数据的情况）
     name_arr = []  # 定义外形名字数组
     for item in db.DOCTREE.find():
         print(item["doc_tree_name"])
@@ -290,14 +290,14 @@ def list_all_shapes():  # 查找所有外形名（未考虑没有数据的情况）
     return name_arr
 
 
-def list_doc_tree(name):  # 根据外形名查找对应的目录树，若没有则返回null
+def list_doc_tree(name, cli, db, fs):  # 根据外形名查找对应的目录树，若没有则返回null
     doc_tree = 'null'
     for item in db.DOCTREE.find({"doc_tree_name": name}):
         doc_tree = item["content"]
     return doc_tree
 
 
-def check_user(name, password):  # 验证用户名密码是否正确（未考虑用户名不存在）
+def check_user(name, password, cli, db, fs):  # 验证用户名密码是否正确（未考虑用户名不存在）
     for item in db.USERS.find({"user_name": name}):  # 未考虑重名，建议注册时不可重名
         print(item["user_name"] + ',' + item["user_password"])
         if item["user_password"] == password:
@@ -306,13 +306,13 @@ def check_user(name, password):  # 验证用户名密码是否正确（未考虑用户名不存在）
             return 0
 
 
-def get_user_authority(name):  # 验证用户权限
+def get_user_authority(name, cli, db, fs):  # 验证用户权限
     for item in db.USERS.find({"user_name": name}):
         print(item["user_name"] + 'authority :' + str(item["user_authority"]))
         return item["user_authority"]
 
 
-def modify_user(name, new_password, new_authority):  # 修改用户信息
+def modify_user(name, new_password, new_authority, cli, db, fs):  # 修改用户信息
     for item in db.USERS.find({"user_name": name}):
         print('修改前；' + item["user_name"] + ',' + item["user_password"] + ',' + str(item["user_authority"]))
         db.USERS.update({"user_name": name}, {"$set": {"user_password": new_password, "user_authority": new_authority}})
@@ -321,7 +321,7 @@ def modify_user(name, new_password, new_authority):  # 修改用户信息
     return 1
 
 
-def add_user(name, password, authority):  # 前端管理员添加用户
+def add_user(name, password, authority, cli, db, fs):  # 前端管理员添加用户
     if db.USERS.find({"user_name": name}).count() == 0:  # 控制不能重名
         db.USERS.insert({"user_name": name, "user_password": password, "user_authority": authority})
         item2 = db.USERS.find_one({"user_name": name})
@@ -331,7 +331,7 @@ def add_user(name, password, authority):  # 前端管理员添加用户
         return 0
 
 
-def del_user(name):  # 前端管理员删除用户
+def del_user(name, cli, db, fs):  # 前端管理员删除用户
     item = db.USERS.remove({"user_name": name})
     if item['n'] == 1:
         return 1
@@ -339,12 +339,12 @@ def del_user(name):  # 前端管理员删除用户
         return 0
 
 
-def count_users():  # 计算用户数量
+def count_users(cli, db, fs):  # 计算用户数量
     users_num = db.USERS.find().count()
     return users_num
 
 
-def get_user_list():  # 获得所有用户信息列表
+def get_user_list(cli, db, fs):  # 获得所有用户信息列表
     user_arr = []
     for item in db.USERS.find({}, {"_id": 0}):
         j_user_arr = json.dumps(item)
@@ -352,7 +352,7 @@ def get_user_list():  # 获得所有用户信息列表
     print(user_arr)
     return user_arr
 
-if __name__ == "__main__":
+def my_socket():
     cli, db, fs = pyMongo.get_cli_db_fs()
     print(" 数据库链接完毕")
     s = socket.socket()
@@ -363,8 +363,8 @@ if __name__ == "__main__":
 
     s.listen(5)
     print("服务正在启动...")
-
     while True:
         sock, addr = s.accept()  # 接收一个新连接
-        t1 = threading.Thread(target=conn_thread, kwargs={"conn": sock, "addr": addr})
+        t1 = threading.Thread(target=conn_thread, kwargs={"conn": sock, "addr": addr, "cli": cli, "db": db, "fs": fs})
         t1.start()
+

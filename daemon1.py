@@ -4,7 +4,6 @@ import sys, os, time, atexit
 from signal import SIGTERM   
   
 import string
-#from HuangzbSocketdoor import socketmain
 from Huangzblog1 import mylog
 class Daemon:  
     """ 
@@ -89,7 +88,7 @@ class Daemon:
         Start the daemon 
         """  
         # Check for a pidfile to see if the daemon already runs  
-        print("DEBUG:Running the daemon......")
+        print("DEBUG:Starting the daemon......")
         mylog(1,self.flog,"DEBUG:CHECK for a pidfile to see if the daemon already runs")
         try:  
             pf = open(self.pidfile,'r')  
