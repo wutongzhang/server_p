@@ -352,7 +352,6 @@ def get_user_list():  # 获得所有用户信息列表
     print(user_arr)
     return user_arr
 
-
 if __name__ == "__main__":
     cli, db, fs = pyMongo.get_cli_db_fs()
     print(" 数据库链接完毕")
