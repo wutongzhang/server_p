@@ -106,10 +106,9 @@ def handle_req(conn, req, cli, db, fs, flog):  # 处理前端请求
 def send_j_response(conn, res, filename, flog):  # 向前台发送json压缩包
     #将json写入文件
     #filename = 'req_ALEX_20170708142032_list_all_shapes.json'
-    mylog(1, flog, "进入发送函数")
+    mylog(1, flog, "进入json发送函数")
     mylog(1, flog, filename)
     fp = open("/tmp/"+filename, 'w')
-    mylog(1, flog, "open" + filename)
     fp.write(json.dumps(res))
     fp.close()
     mylog(1, flog, "将json写入文件...")
@@ -119,6 +118,7 @@ def send_j_response(conn, res, filename, flog):  # 向前台发送json压缩包
     t.add("/tmp/"+filename)
     t.close()
     filename = filename.replace(".json",".tar.gz")
+    s_filename = filename.encode("UTF-8")
     #向client端发送文件头，包括压缩包名称和大小
    # msg = 'OK'
     #conn.sendall(msg.encode('utf-8'))
@@ -132,19 +132,22 @@ def send_j_response(conn, res, filename, flog):  # 向前台发送json压缩包
         if not filedata: break
         conn.sendall(filedata)
     t.close()
-    os.remove(filename)
-    filename = filename.replace(".tar.gz",".json")
-    os.remove(filename)
     mylog(1, flog, "向client端发送压缩包...")
-    print(res)
+    os.remove("/tmp/"+filename)
+    filename = filename.replace(".tar.gz",".json")
+    os.remove("/tmp/"+filename)
+    mylog(1, flog, "清除本地缓存...")
+
 
 def send_file(conn, filename, flog):
 	#将文件打包压缩
+    mylog(1, flog, "进入文件发送函数...")
     filename = filename.replace(".dat",".tar.gz")
     t = tarfile.open("/tmp/"+filename, "w:gz")
     filename = filename.replace(".tar.gz",".dat")
     t.add("/tmp/"+filename)
     t.close()
+    mylog(1, flog, "文件打包完成...")
     filename = filename.replace(".dat",".tar.gz")
     s_filename = filename.encode("UTF-8")
     #向client端发送文件头，包括压缩包名称和大小
@@ -152,7 +155,7 @@ def send_file(conn, filename, flog):
     #conn.sendall(msg.encode('utf-8'))
     fhead = struct.pack('<128s11I', s_filename, 0, 0, 0, 0, 0, 0, 0, 0, os.stat("/tmp/"+filename).st_size, 0, 0)
     conn.send(fhead)
-	
+    mylog(1, flog, "发送压缩包名称和大小...")
     #向client端发送压缩包
     t = open("/tmp/" + filename, 'rb')
     while 1:
@@ -160,9 +163,11 @@ def send_file(conn, filename, flog):
         if not filedata: break
         conn.sendall(filedata)
     t.close()
-    os.remove(filename)
+    mylog(1, flog, "向client端发送压缩包...")
+    os.remove("/tmp/"+filename)
     filename = filename.replace(".tar.gz",".dat")
-    os.remove(filename)
+    os.remove("/tmp/"+filename)
+    mylog(1, flog, "清除本地缓存...")
 
 def name_switch(old_filename):
     if old_filename == "Input_ConfigForceMoment.dat":
