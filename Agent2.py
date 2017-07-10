@@ -8,76 +8,85 @@ import pyMongo
 import threading
 import os
 import tarfile
+from Huangzblog1 import mylog
 import base64
 
 
-def conn_thread(conn, addr, cli, db, fs):  # TCP·şÎñÆ÷¶Ë´¦ÀíÂß¼­
+def conn_thread(conn, addr, cli, db, fs, flog):  # TCP·şÎñÆ÷¶Ë´¦ÀíÂß¼­
     print('Accept new connection from %s:%s.' % addr)  # ½ÓÊÜĞÂµÄÁ¬½ÓÇëÇó
+    mylog(1, flog, 'Accept new connection from %s:%s.' % addr)
     msg = conn.recv(1024)
     req = eval(msg.decode('utf-8'))  # ½«¿Í»§¶ËµÄÇëÇóĞÅÏ¢×ª»»Îª×ÖµäÀàĞÍ
+    mylog(1, flog, req)
     print(req)
-    handle_req(conn, req, cli, db, fs)
+    handle_req(conn, req, cli, db, fs, flog)
+    mylog(1, flog, "±¾´ÎÇëÇó´¦ÀíÍê±Ï£¬ÕıÔÚ¶Ï¿ªÁ¬½Ó...")
     print("±¾´ÎÇëÇó´¦ÀíÍê±Ï£¬ÕıÔÚ¶Ï¿ªÁ¬½Ó...")
     conn.close()
+    mylog(1, flog, "Á¬½ÓÒÑ¹Ø±Õ...\n")
     print("Á¬½ÓÒÑ¹Ø±Õ...\n")
 
 
-def handle_req(conn, req, cli, db, fs):  # ´¦ÀíÇ°¶ËÇëÇó
+def handle_req(conn, req, cli, db, fs, flog):  # ´¦ÀíÇ°¶ËÇëÇó
+    mylog(1, flog, '\n´¦Àí¿Í»§¶ËÇëÇó¡£¡£¡£')
     if req['type'] == 'list_all_shapes':  # Ç°¶ËÏòºóÌ¨·¢ËÍÇëÇó£¬»ñÈ¡×îÍâ²ãÄ¿Â¼
+        mylog(1, flog, '\nlist_all_shapes')
         response = {
             "type": "list_all_shapes",
-            "all_shapenames": list_all_shapes(cli, db, fs)
+            "all_shapenames": list_all_shapes(cli, db, fs, flog)
         }
+        mylog(1, flog, response)
         filename = req['clientfilename']
-        send_j_response(conn,response,filename)
+        send_j_response(conn,response,filename, flog)
+        mylog(1, flog, '\nlist_all_shapes Ö´ĞĞÍê±Ï')
 
     elif req['type'] == 'list_doc_tree':  # Ç°¶ËÏòºóÌ¨·¢ËÍÇëÇó£¬»ñÈ¡Ö¸¶¨ÄÚ²ãÄ¿Â¼
-        doc_tree = list_doc_tree(req['doc_tree_name'], cli, db, fs)
+        doc_tree = list_doc_tree(req['doc_tree_name'], cli, db, fs, flog)
         doc_tree = eval(doc_tree)
         filename = req['clientfilename']
-        send_j_response(conn, doc_tree, filename)
+        send_j_response(conn, doc_tree, filename, flog)
 
     elif req['type'] == 'log_in':  # Ç°¶ËÏòºóÌ¨·¢ËÍÇëÇó£¬ÇëÇóµÇÂ¼
         response = {
             "type": "log_in",
-            "error_message": check_user(req['user_name'], req['user_password'], cli, db, fs),
+            "error_message": check_user(req['user_name'], req['user_password'], cli, db, fs, flog),
             "user_name": req['user_name'],
-            "user_authority": get_user_authority(req['user_name'], cli, db, fs)
+            "user_authority": get_user_authority(req['user_name'], cli, db, fs, flog)
         }
-        send_j_response(conn, response)
+        send_j_response(conn, response, flog)
 
     elif req['type'] == 'modify':  # Ç°¶ËÏòºó¶Ë·¢ËÍĞŞ¸ÄÓÃ»§ĞÅÏ¢ÇëÇó
         response = {
             "type": "modify",
-            "error_message": modify_user(req['user_name'], req['user_password'], req['user_authority'], cli, db, fs)
+            "error_message": modify_user(req['user_name'], req['user_password'], req['user_authority'], cli, db, fs, flog)
         }
-        send_j_response(conn, response)
+        send_j_response(conn, response, flog)
 
     elif req['type'] == 'list_all_users':  # Ç°¶ËÒªÇóÁĞ³öËùÓĞÓÃ»§
         response = {
             "type": "list_all_users",
-            "users_num": count_users(cli, db, fs),
-            "all_users": get_user_list(cli, db, fs)
+            "users_num": count_users(cli, db, fs, flog),
+            "all_users": get_user_list(cli, db, fs, flog)
         }
-        send_j_response(conn, response)
+        send_j_response(conn, response, flog)
 
     elif req['type'] == 'add_user':  # Ç°¶ËÒªÇóÌí¼ÓÓÃ»§
         response = {
             "type": "add_user",
-            "error_message": add_user(req['user_name'], req['user_password'], req['user_authority'], cli, db, fs)
+            "error_message": add_user(req['user_name'], req['user_password'], req['user_authority'], cli, db, fs, flog)
         }
-        send_j_response(conn, response)
+        send_j_response(conn, response, flog)
 
     elif req['type'] == 'delete_user':  # Ç°¶ËÒªÇóÉ¾³ıÓÃ»§
         response = {
             "type": "delete_user",
-            "error_message": del_user(req['user_name'], cli, db, fs)
+            "error_message": del_user(req['user_name'], cli, db, fs, flog)
         }
-        send_j_response(conn, response)
+        send_j_response(conn, response, flog)
 
     elif req['type'] == 'download_file':  # Ç°¶ËÏòºóÌ¨·¢ËÍÇëÇó£¬»ñµÃÖ¸¶¨ÎÄ¼ş
         new_filename = name_switch(req['file_name']['which_file'])
-        send_file(conn, find_file(new_filename, req['file_name'],req['clientfilename'], cli, db, fs))
+        send_file(conn, find_file(new_filename, req['file_name'],req['clientfilename'], cli, db, fs, flog), flog)
         # if req['ack'] == 1:
             # file = find_file(new_filename, req['file_name'])
             # print(conn.send(file))
@@ -94,30 +103,30 @@ def handle_req(conn, req, cli, db, fs):  # ´¦ÀíÇ°¶ËÇëÇó
         print('Wrong request!')
 
 
-def send_j_response(conn, res, filename):  # ÏòÇ°Ì¨·¢ËÍjsonÑ¹Ëõ°ü
+def send_j_response(conn, res, filename, flog):  # ÏòÇ°Ì¨·¢ËÍjsonÑ¹Ëõ°ü
     #½«jsonĞ´ÈëÎÄ¼ş
     #filename = 'req_ALEX_20170708142032_list_all_shapes.json'
-    fp = open(filename, 'w')
+    mylog(1, flog, "½øÈë·¢ËÍº¯Êı")
+    mylog(1, flog, filename)
+    fp = open("/tmp/"+filename, 'w')
+    mylog(1, flog, "open" + filename)
     fp.write(json.dumps(res))
     fp.close()
-	
-    #½«jsonÎÄ¼ş´ò°üÑ¹Ëõ
+    mylog(1, flog, "½«jsonĞ´ÈëÎÄ¼ş...")
     filename = filename.replace(".json",".tar.gz")
-    t = tarfile.open(filename, "w:gz")
+    t = tarfile.open("/tmp/"+filename, "w:gz")
     filename = filename.replace(".tar.gz",".json")
-    t.add(filename)
+    t.add("/tmp/"+filename)
     t.close()
     filename = filename.replace(".json",".tar.gz")
-    s_filename = filename.encode("UTF-8")
-	
     #Ïòclient¶Ë·¢ËÍÎÄ¼şÍ·£¬°üÀ¨Ñ¹Ëõ°üÃû³ÆºÍ´óĞ¡
    # msg = 'OK'
     #conn.sendall(msg.encode('utf-8'))
-    fhead = struct.pack('<128s11I', s_filename, 0, 0, 0, 0, 0, 0, 0, 0, os.stat(filename).st_size, 0, 0)
+    fhead = struct.pack('<128s11I', s_filename, 0, 0, 0, 0, 0, 0, 0, 0, os.stat("/tmp/"+filename).st_size, 0, 0)
     conn.send(fhead)
-	
+    mylog(1, flog, "Ïòclient¶Ë·¢ËÍÎÄ¼şÍ·£¬°üÀ¨Ñ¹Ëõ°üÃû³ÆºÍ´óĞ¡...")
     #Ïòclient¶Ë·¢ËÍÑ¹Ëõ°ü
-    t = open(filename, 'rb')
+    t = open("/tmp/"+filename, 'rb')
     while 1:
         filedata = t.read(1024)
         if not filedata: break
@@ -126,26 +135,26 @@ def send_j_response(conn, res, filename):  # ÏòÇ°Ì¨·¢ËÍjsonÑ¹Ëõ°ü
     os.remove(filename)
     filename = filename.replace(".tar.gz",".json")
     os.remove(filename)
+    mylog(1, flog, "Ïòclient¶Ë·¢ËÍÑ¹Ëõ°ü...")
     print(res)
 
-def send_file(conn, filename):
+def send_file(conn, filename, flog):
 	#½«ÎÄ¼ş´ò°üÑ¹Ëõ
     filename = filename.replace(".dat",".tar.gz")
-    t = tarfile.open(filename, "w:gz")
+    t = tarfile.open("/tmp/"+filename, "w:gz")
     filename = filename.replace(".tar.gz",".dat")
-    t.add(filename)
+    t.add("/tmp/"+filename)
     t.close()
     filename = filename.replace(".dat",".tar.gz")
     s_filename = filename.encode("UTF-8")
-	
     #Ïòclient¶Ë·¢ËÍÎÄ¼şÍ·£¬°üÀ¨Ñ¹Ëõ°üÃû³ÆºÍ´óĞ¡
     #msg = 'OK'
     #conn.sendall(msg.encode('utf-8'))
-    fhead = struct.pack('<128s11I', s_filename, 0, 0, 0, 0, 0, 0, 0, 0, os.stat(filename).st_size, 0, 0)
+    fhead = struct.pack('<128s11I', s_filename, 0, 0, 0, 0, 0, 0, 0, 0, os.stat("/tmp/"+filename).st_size, 0, 0)
     conn.send(fhead)
 	
     #Ïòclient¶Ë·¢ËÍÑ¹Ëõ°ü
-    t = open(filename, 'rb')
+    t = open("/tmp/" + filename, 'rb')
     while 1:
         filedata = t.read(1024)
         if not filedata: break
@@ -185,7 +194,7 @@ def name_switch(old_filename):
     return new_filename
 
 
-def find_file(filename, obj, clientfilename, cli, db, fs):#filenameÊÇÎÄ¼şÔÚÊı¾İ¿âÀïµÄÃû×Ö£¬objÊÇÇ°¶Ë·¢À´µÄÎÄ¼şÏà¹ØĞÅÏ¢
+def find_file(filename, obj, clientfilename, cli, db, fs, flog):#filenameÊÇÎÄ¼şÔÚÊı¾İ¿âÀïµÄÃû×Ö£¬objÊÇÇ°¶Ë·¢À´µÄÎÄ¼şÏà¹ØĞÅÏ¢
     if filename == "statistics":
         item = db["STATISTICS"].find_one({"shape_name": obj[shape_name]})
         db_file_id = item[filename]["db_file_id"]
@@ -206,7 +215,7 @@ def find_file(filename, obj, clientfilename, cli, db, fs):#filenameÊÇÎÄ¼şÔÚÊı¾İ¿
             db_file_id = item[filename]["db_file_id"]
 
     bytes_data = pyMongo.getFile(fs, db_file_id)
-    fp = open(clientfilename,'wb')
+    fp = open("/tmp/" + clientfilename,'wb')
     fp.write(bytes_data)
     fp.close()
     return clientfilename
@@ -255,7 +264,7 @@ def search_condition(obj):  # ¹¹³É²éÑ¯Ìõ¼ş×Ö¶Î
 
 # return file_size
 
-def get_file_information(filename, obj, cli, db, fs):
+def get_file_information(filename, obj, cli, db, fs, flog):
     if filename == "statistics":
         item = db["STATISTICS"].find_one({"shape_name": shape_name})
         file_size = item[filename]["file_size"]
@@ -282,7 +291,7 @@ def get_file_information(filename, obj, cli, db, fs):
     return file_size, file_authority
 
 
-def list_all_shapes(cli, db, fs):  # ²éÕÒËùÓĞÍâĞÎÃû£¨Î´¿¼ÂÇÃ»ÓĞÊı¾İµÄÇé¿ö£©
+def list_all_shapes(cli, db, fs, flog):  # ²éÕÒËùÓĞÍâĞÎÃû£¨Î´¿¼ÂÇÃ»ÓĞÊı¾İµÄÇé¿ö£©
     name_arr = []  # ¶¨ÒåÍâĞÎÃû×ÖÊı×é
     for item in db.DOCTREE.find():
         print(item["doc_tree_name"])
@@ -290,14 +299,14 @@ def list_all_shapes(cli, db, fs):  # ²éÕÒËùÓĞÍâĞÎÃû£¨Î´¿¼ÂÇÃ»ÓĞÊı¾İµÄÇé¿ö£©
     return name_arr
 
 
-def list_doc_tree(name, cli, db, fs):  # ¸ù¾İÍâĞÎÃû²éÕÒ¶ÔÓ¦µÄÄ¿Â¼Ê÷£¬ÈôÃ»ÓĞÔò·µ»Ønull
+def list_doc_tree(name, cli, db, fs, flog):  # ¸ù¾İÍâĞÎÃû²éÕÒ¶ÔÓ¦µÄÄ¿Â¼Ê÷£¬ÈôÃ»ÓĞÔò·µ»Ønull
     doc_tree = 'null'
     for item in db.DOCTREE.find({"doc_tree_name": name}):
         doc_tree = item["content"]
     return doc_tree
 
 
-def check_user(name, password, cli, db, fs):  # ÑéÖ¤ÓÃ»§ÃûÃÜÂëÊÇ·ñÕıÈ·£¨Î´¿¼ÂÇÓÃ»§Ãû²»´æÔÚ£©
+def check_user(name, password, cli, db, fs, flog):  # ÑéÖ¤ÓÃ»§ÃûÃÜÂëÊÇ·ñÕıÈ·£¨Î´¿¼ÂÇÓÃ»§Ãû²»´æÔÚ£©
     for item in db.USERS.find({"user_name": name}):  # Î´¿¼ÂÇÖØÃû£¬½¨Òé×¢²áÊ±²»¿ÉÖØÃû
         print(item["user_name"] + ',' + item["user_password"])
         if item["user_password"] == password:
@@ -306,13 +315,13 @@ def check_user(name, password, cli, db, fs):  # ÑéÖ¤ÓÃ»§ÃûÃÜÂëÊÇ·ñÕıÈ·£¨Î´¿¼ÂÇÓÃ
             return 0
 
 
-def get_user_authority(name, cli, db, fs):  # ÑéÖ¤ÓÃ»§È¨ÏŞ
+def get_user_authority(name, cli, db, fs, flog):  # ÑéÖ¤ÓÃ»§È¨ÏŞ
     for item in db.USERS.find({"user_name": name}):
         print(item["user_name"] + 'authority :' + str(item["user_authority"]))
         return item["user_authority"]
 
 
-def modify_user(name, new_password, new_authority, cli, db, fs):  # ĞŞ¸ÄÓÃ»§ĞÅÏ¢
+def modify_user(name, new_password, new_authority, cli, db, fs, flog):  # ĞŞ¸ÄÓÃ»§ĞÅÏ¢
     for item in db.USERS.find({"user_name": name}):
         print('ĞŞ¸ÄÇ°£»' + item["user_name"] + ',' + item["user_password"] + ',' + str(item["user_authority"]))
         db.USERS.update({"user_name": name}, {"$set": {"user_password": new_password, "user_authority": new_authority}})
@@ -321,7 +330,7 @@ def modify_user(name, new_password, new_authority, cli, db, fs):  # ĞŞ¸ÄÓÃ»§ĞÅÏ¢
     return 1
 
 
-def add_user(name, password, authority, cli, db, fs):  # Ç°¶Ë¹ÜÀíÔ±Ìí¼ÓÓÃ»§
+def add_user(name, password, authority, cli, db, fs, flog):  # Ç°¶Ë¹ÜÀíÔ±Ìí¼ÓÓÃ»§
     if db.USERS.find({"user_name": name}).count() == 0:  # ¿ØÖÆ²»ÄÜÖØÃû
         db.USERS.insert({"user_name": name, "user_password": password, "user_authority": authority})
         item2 = db.USERS.find_one({"user_name": name})
@@ -331,7 +340,7 @@ def add_user(name, password, authority, cli, db, fs):  # Ç°¶Ë¹ÜÀíÔ±Ìí¼ÓÓÃ»§
         return 0
 
 
-def del_user(name, cli, db, fs):  # Ç°¶Ë¹ÜÀíÔ±É¾³ıÓÃ»§
+def del_user(name, cli, db, fs, flog):  # Ç°¶Ë¹ÜÀíÔ±É¾³ıÓÃ»§
     item = db.USERS.remove({"user_name": name})
     if item['n'] == 1:
         return 1
@@ -339,12 +348,12 @@ def del_user(name, cli, db, fs):  # Ç°¶Ë¹ÜÀíÔ±É¾³ıÓÃ»§
         return 0
 
 
-def count_users(cli, db, fs):  # ¼ÆËãÓÃ»§ÊıÁ¿
+def count_users(cli, db, fs, flog):  # ¼ÆËãÓÃ»§ÊıÁ¿
     users_num = db.USERS.find().count()
     return users_num
 
 
-def get_user_list(cli, db, fs):  # »ñµÃËùÓĞÓÃ»§ĞÅÏ¢ÁĞ±í
+def get_user_list(cli, db, fs, flog):  # »ñµÃËùÓĞÓÃ»§ĞÅÏ¢ÁĞ±í
     user_arr = []
     for item in db.USERS.find({}, {"_id": 0}):
         j_user_arr = json.dumps(item)
@@ -352,19 +361,21 @@ def get_user_list(cli, db, fs):  # »ñµÃËùÓĞÓÃ»§ĞÅÏ¢ÁĞ±í
     print(user_arr)
     return user_arr
 
-def my_socket():
+def my_socket(flog):
     cli, db, fs = pyMongo.get_cli_db_fs()
+    mylog(1, flog, '\n\nÊı¾İ¿âÁ´½ÓÍê±Ï......................\n\n')
     print(" Êı¾İ¿âÁ´½ÓÍê±Ï")
     s = socket.socket()
 
     host = socket.gethostname()
-    port = 4396
+    port = 9999
     s.bind((host, port))
 
     s.listen(5)
+    mylog(1, flog, '\n\n·şÎñÕıÔÚÆô¶¯......................\n\n')
     print("·şÎñÕıÔÚÆô¶¯...")
     while True:
         sock, addr = s.accept()  # ½ÓÊÕÒ»¸öĞÂÁ¬½Ó
-        t1 = threading.Thread(target=conn_thread, kwargs={"conn": sock, "addr": addr, "cli": cli, "db": db, "fs": fs})
+        t1 = threading.Thread(target=conn_thread, kwargs={"conn": sock, "addr": addr, "cli": cli, "db": db, "fs": fs, "flog":flog})
         t1.start()
 

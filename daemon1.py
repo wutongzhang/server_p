@@ -88,7 +88,7 @@ class Daemon:
         Start the daemon 
         """  
         # Check for a pidfile to see if the daemon already runs  
-        print("DEBUG:Starting the daemon......")
+        print("DEBUG:Running the daemon......")
         mylog(1,self.flog,"DEBUG:CHECK for a pidfile to see if the daemon already runs")
         try:  
             pf = open(self.pidfile,'r')  
